@@ -17,5 +17,7 @@ class Event:
             op=parts[4]
         )
 
+    def print_event(self):
+        print(f"Event Type: {self.event_type}, Source: {self.source}, Dest: {self.dest}, Size: {self.size}, Op: {self.op}")
 
 
