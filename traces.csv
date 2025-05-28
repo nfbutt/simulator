@@ -1,0 +1,14 @@
+# Common Trace File for All GPUs (SPMD Execution)
+# EVENT_TYPE, SOURCE, DESTINATION, SIZE, OPERATION
+
+# Step 1: Initial GPU Computation
+COMPUTE , ALL, , 100, EXECUTE # All GPUs execute a task of 200 FLOPS
+
+# Step 2: GPU Computation
+COMPUTE , ALL, , 50, EXECUTE # All GPUs execute a task of 50 FLOPS
+
+# Step 3: Collective Communication (All-Reduce)
+COMMUNICATION, ALL, , 16, ALL_REDUCE # All GPUs perform an All-Reduce operation on 16 GB Data
+
+# Step 4: GPU Computation
+COMPUTE, ALL, , 30, EXECUTE # All GPUs execute a task of 30FLOPS
