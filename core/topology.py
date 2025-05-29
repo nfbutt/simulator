@@ -11,6 +11,7 @@ class RingTopology(Topology):
         n = len(gpus)
         total_steps = 2 * (n - 1)
         chunk_size_gb = self.config.chunk_size / (1024 ** 3)
+        print("chunk_size_gb = ", chunk_size_gb)
         num_chunks = int((size_gb / n) / chunk_size_gb)
 
         for step in range(total_steps):

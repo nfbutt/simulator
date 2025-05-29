@@ -15,15 +15,15 @@ if __name__ == "__main__":
         config_dict = json.load(f)
 
         events = parse_trace_file(sys.argv[2])
-        for event in events:
-            event.print_event()
+        # for event in events:
+        #     event.print_event()
 
-        # config = SystemConfig.from_dict(config_dict)
+        config = SystemConfig.from_dict(config_dict)
 
-        # sim = Simulator(config)
-        # sim.run(events)
-        # for r in sim.results():
-        #     print(r)
+        sim = Simulator(config)
+        sim.run(events)
+        for r in sim.results():
+            print(r)
 
 
 
