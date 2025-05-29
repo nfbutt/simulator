@@ -1,38 +1,52 @@
+import math
+
 class Topology:
     def __init__(self, config):
         self.config = config
 
-    def simulate_allreduce(self, gpus, size_gb):
-        raise NotImplementedError
-
 
 class RingTopology(Topology):
     def simulate_allreduce(self, gpus, size_gb):
+        """
+        Simulate Ring-Based AllReduce:
+        - Reduce-Scatter: Each GPU sends/receives n-1 chunks
+        - All-Gather: Each GPU receives n-1 chunks
+        Total: 2(n-1) steps
+        """
         n = len(gpus)
-        total_steps = 2 * (n - 1)
+        chunk_per_gpu = size_gb / n
         chunk_size_gb = self.config.chunk_size / (1024 ** 3)
-        print("chunk_size_gb = ", chunk_size_gb)
-        num_chunks = int((size_gb / n) / chunk_size_gb)
+        steps = int(chunk_per_gpu / chunk_size_gb)
 
-        for step in range(total_steps):
+        # 2(n-1) steps in Ring AllReduce
+        for step in range(2 * (n - 1)):
             for i in range(n):
                 sender = gpus[i]
                 receiver = gpus[(i + 1) % n]
-                duration = chunk_size_gb / self.config.bandwidth
-                sender.wait_until(sender.clock)
-                receiver.wait_until(sender.clock)
+                # Effective bandwidth = min(sender_bw, receiver_bw)
+                bandwidth = min(sender.config.bandwidth, receiver.config.bandwidth)
+                duration = chunk_size_gb / bandwidth  # communication overhead per chunk
+
+                # Synchronize sender/receiver before transfer
+                start_time = max(sender.clock, receiver.clock)
+                sender.wait_until(start_time)
+                receiver.wait_until(start_time)
                 sender.execute_comm(duration)
                 receiver.execute_comm(duration)
 
 
 class TreeTopology(Topology):
     def simulate_allreduce(self, gpus, size_gb):
-        import math
+        """
+        Simulate Tree-Based AllReduce:
+        - Reduction Phase: log2(N) steps
+        - Broadcast Phase: log2(N) steps
+        """
         levels = int(math.ceil(math.log2(len(gpus))))
         chunk_size_gb = self.config.chunk_size / (1024 ** 3)
-        duration = chunk_size_gb / self.config.bandwidth
+        duration = chunk_size_gb / min(g.config.bandwidth for g in gpus)
 
-        # Reduction
+        # Reduction (up the tree)
         for level in range(levels):
             step = 2 ** level
             for i in range(0, len(gpus), step * 2):
@@ -44,7 +58,7 @@ class TreeTopology(Topology):
                     g1.execute_comm(duration)
                     g2.execute_comm(duration)
 
-        # Broadcast
+        # Broadcast (down the tree)
         for level in reversed(range(levels)):
             step = 2 ** level
             for i in range(0, len(gpus), step * 2):
@@ -59,13 +73,20 @@ class TreeTopology(Topology):
 
 class FullyConnectedTopology(Topology):
     def simulate_allreduce(self, gpus, size_gb):
+        """
+        Simulate Fully Connected AllReduce:
+        - Each GPU communicates with every other GPU
+        - Leads to O(N^2) communication
+        """
         n = len(gpus)
         chunk_size_gb = self.config.chunk_size / (1024 ** 3)
-        duration = chunk_size_gb / self.config.bandwidth
-        for sender in gpus:
-            for receiver in gpus:
-                if sender == receiver:
+
+        for i, sender in enumerate(gpus):
+            for j, receiver in enumerate(gpus):
+                if i == j:
                     continue
+                bandwidth = min(sender.config.bandwidth, receiver.config.bandwidth)
+                duration = chunk_size_gb / bandwidth
                 t = max(sender.clock, receiver.clock)
                 sender.wait_until(t)
                 receiver.wait_until(t)
