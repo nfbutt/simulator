@@ -13,12 +13,8 @@ if __name__ == "__main__":
 
     with open(sys.argv[1], 'r') as f:
         config_dict = json.load(f)
-
-        events = parse_trace_file(sys.argv[2])
-        # for event in events:
-        #     event.print_event()
-
         config = SystemConfig.from_dict(config_dict)
+        events = parse_trace_file(sys.argv[2])
 
         sim = Simulator(config)
         sim.run(events)
